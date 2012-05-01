@@ -1,0 +1,98 @@
+#!/usr/bin/ruby
+
+# bubble.y 파일에 두 번째 숙제를 적용시키기 위한 컨버터
+# stdin으로 입력받고 stdout으로 내뱉는다.
+module ConvYacc
+  # 상수들
+  @@item_type = "Bubble::Token"
+  @@prefix = "\t\t{\n"
+  @@postfix = "\t\t}\n"
+  @@margin = "\t\t\t"
+
+  # 파스트리에 포함시키지 않을 터미널 심볼들의 목록
+  # 예를들어 ["NL"] 따위
+  @@ignore_terminal_symbols = []
+  
+  # 프로덕션을 하지 않을 터미널 심볼들의 목록
+  @@ignore_production = ["bubble"]
+
+  # 터미널 심볼의 코드를 생성한다.
+  # 무시 목록에 있는 것을 제외하고 특정 심볼은 따로 정해서 코드를 만든다.
+  def ConvYacc.terminal_code(symbol_name, i)
+    terminal_code_map = {
+      "INT_VAL" => @@margin+"\t#{@@item_type}* item = new #{@@item_type}(\"#{symbol_name}\", $#{i});\n",
+      "DOUBLE_VAL" => @@margin+"\t#{@@item_type}* item = new #{@@item_type}(\"#{symbol_name}\", $#{i});\n",
+      "STRING_VAL" => @@margin+"\t#{@@item_type}* item = new #{@@item_type}(\"#{symbol_name}\", *($#{i}));\n",
+      "ID" => @@margin+"\t#{@@item_type}* item = new #{@@item_type}(\"#{symbol_name}\", *($#{i}));\n"
+    }
+    ret = terminal_code_map[symbol_name]
+    ret = @@margin + "\t#{@@item_type}* item = new #{@@item_type}(\"#{symbol_name}\");\n" unless ret
+    ret += @@margin + "\tnode->AppendChild(new Bubble::ParseTreeNode<#{@@item_type}>(item));\n"
+    return "" if @@ignore_terminal_symbols.include?(symbol_name)
+    @@margin + "{\n" + ret + @@margin + "}\n" 
+  end
+
+  # 심볼이 터미널 인지의 여부를 리턴함.
+  # 현재는 파싱 결과에 의존하지 않고 대문자로 이루어진 것으로 판단.
+  def ConvYacc.is_terminal_symbol?(symbol_name)
+    symbol_name.upcase == symbol_name
+  end
+
+  # 파스 트리 만드는 코드를 생성한다.
+  def ConvYacc.make_tree(lvalue, rvalue)
+    ret = @@margin + "Bubble::ParseTreeNode<#{@@item_type}>* node = new Bubble::ParseTreeNode<#{@@item_type}>();\n"
+    1.upto(rvalue.split.length) { |i|
+      symbol_name = rvalue.split[i-1]
+      if is_terminal_symbol?(symbol_name)
+        ret += terminal_code(symbol_name, i)
+      else
+        ret += @@margin + "node->AppendChild($#{i});\n"
+      end
+    }
+    ret += @@margin + "$$ = node;\n"
+    if lvalue == "bubble"
+      ret += @@margin + "root_node = node\n"
+    end
+    ret
+  end
+
+  # 각 트랜지션의 세만틱 액션의 코드를 생성한다.
+  def ConvYacc.body(lvalue, rvalue)
+    print_transition = @@margin + "printf(\"#{lvalue} -> #{rvalue}\\n\");\n"
+    @@prefix + print_transition + make_tree(lvalue, rvalue) + @@postfix
+  end
+
+  def ConvYacc.main
+    original = $stdin.read
+    state = :initial
+    lvalue = ""
+    original.each_line { |line|
+      $stdout.write(line)
+      case state
+      when :initial
+        state = :body_init if line == "%%\n"
+      when :body_init
+        if line.chomp == "%%"
+          state = :post
+        elsif not line.strip.chomp.empty? and line.strip.chomp[0..0] != "%"
+          lvalue = line.chomp
+          state = :body_inside
+        end
+      when :body_inside
+        if line.strip.chomp == ";"
+          state = :body_init
+        elsif not line.strip.chomp.empty?
+          rvalue = line.delete(":|").strip
+          $stdout.write(body(lvalue, rvalue))
+        end
+      when :post
+      end
+      if state == :body_init
+        
+      end
+    }
+  end
+
+end
+
+ConvYacc.main

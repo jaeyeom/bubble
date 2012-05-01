@@ -1,0 +1,38 @@
+#!/usr/bin/ruby
+
+# quadruple.hpp 파일에서 ToCCode 함수의 몸체를 생성하는 스크립트
+
+old_left = ""
+parsing = false
+puts "        std::ostringstream oss;"
+puts "        switch(opr) {"
+$stdin.each_line do |line|
+  parsing = false if line.chomp.squeeze.include?("};")
+  if parsing then
+    tok = line.chomp.delete(" ")
+    tok = tok[0...tok.index(",")] if tok.include?(",")
+    tok = tok[0...tok.index("//")] if tok.include?("//")
+    if tok.include?("_") and line.include?("//") then
+      code = line.chomp
+      code = " " + code[code.index("//")+2...code.length].strip + " "
+      code = "            oss << \"" + code + "\";"
+      code.gsub!(/([^A-Za-z])a([^A-Za-z])/, '\1" << operands[0]->toString() << "\2')
+      code.gsub!(/([^A-Za-z])b([^A-Za-z])/, '\1" << operands[1]->toString() << "\2')
+      code.gsub!(/([^A-Za-z])c([^A-Za-z])/, '\1" << operands[2]->toString() << "\2')
+      code.gsub!("oss << \" \" << ", "oss << ")
+      code.gsub!(/ \";$/, "\";")
+      code.gsub!(" << \"\";", ";")
+      puts "        case " + tok + ":"
+      puts code
+      puts "            break;"
+    end
+  else
+    parsing = true if line.chomp.squeeze.include?("enum Operator {")
+  end
+end
+puts "        default:"
+puts "            oss << \"/*\" << OperatorToStr() << \" Couldn't generate C Code of this line. Ignored. */\";"
+puts "            break;"
+puts "            // for eliminating warnings"
+puts "        }"
+puts "        return oss.str();"

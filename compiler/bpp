@@ -1,0 +1,63 @@
+#!/usr/bin/ruby
+
+def block_depth(str, tabstop)
+  while str.include? "\t"
+    pos = str.index "\t"
+    num_space = tabstop - (pos % tabstop)
+    str.sub!("\t", ' '*num_space)
+  end
+  str.index /\S/
+end
+
+def process(filename)
+  env_table = {}
+  env_table['tabstop'] = '8'
+  depth_stack = [0]
+  in_file = File.open(filename, 'r')
+  out_file = File.open(filename+'.pp', 'w')
+  line_file = File.open(filename+".pp.line", 'w')
+  content = in_file.read()
+  # 커멘트 삭제
+  content.gsub! /\/\*(?:.|\n)*?\*\//, ''
+  content.gsub! /\/\/.*/, ''
+  # 공백 라인 삭제
+  content.gsub! /^\s*?\n/, ''
+  original_line_num = 0
+  content.each_line do |line|
+    splitted = line.split
+    if splitted && splitted[0][0] == '#'[0].to_i then
+      if splitted[0] == '#set' && splitted.length >= 3 then
+        env_table[splitted[1]] = line.sub(splitted[0],'').sub(splitted[1],'').strip
+      end
+    else
+      depth = block_depth(line, env_table['tabstop'].to_i)
+      if !depth_stack.empty? && (depth_stack.last > depth) then
+        while !depth_stack.empty? && (depth_stack.last > depth)
+          depth_stack.pop
+          out_file.write ' '*depth_stack.last+"end\n"
+          line_file.write original_line_num.to_s+"\n"
+        end
+      end
+      if depth_stack.empty? || (depth_stack.last < depth) then
+        out_file.write ' '*depth_stack.last+"begin\n"
+        line_file.write original_line_num.to_s+"\n"
+        depth_stack.push depth
+      end
+      out_file.write line
+      line_file.write original_line_num.to_s+"\n"
+    end
+    original_line_num += 1
+  end
+  while depth_stack.length > 1
+    depth_stack.pop
+    out_file.write ' '*depth_stack.last+"end\n"
+    line_file.write original_line_num.to_s+"\n"
+  end
+  in_file.close
+  out_file.close
+  line_file.close
+end
+
+for arg in ARGV
+  process(arg)
+end

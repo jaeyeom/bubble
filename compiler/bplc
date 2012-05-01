@@ -1,0 +1,6 @@
+#!/bin/bash
+
+for src in "$@";
+do
+  ./bpp "$src" && ./bubble "$src.pp"
+done

@@ -1,0 +1,56 @@
+#!/usr/bin/awk -f
+BEGIN {
+    parsing = 0;
+    inline_asm = 0;
+    print "        std::ostringstream oss;";
+    print "        switch(opr) {";
+    token = "";
+}
+
+/};/ {
+    parsing = 0;
+}
+
+parsing == 1 && /OP_/ {
+    if (token != "") print "            break;";
+    token = $1;
+    sub(",", "", token);
+}
+
+/\/\*/ { 
+    inline_asm = 1; 
+    if (parsing == 1) printf "        case %s:\n", token
+}
+
+token != "" && inline_asm == 1 {
+    line = $0;
+    gsub(/\/\*/, "", line);
+    gsub(/\*\//, "", line);
+    sub(/^\*/, "", line);
+    gsub(/^ +/, "", line);
+    gsub(/ +$/, "", line);
+    if (line != "") {
+        code = "            oss << \"\\t" line "\" << std::endl;";
+        gsub(/\<a\>/, "\" << operands[0]->toAssemStr() << \"", code);
+        gsub(/\<b\>/, "\" << operands[1]->toAssemStr() << \"", code);
+        gsub(/\<c\>/, "\" << operands[2]->toAssemStr() << \"", code);
+        gsub(/ << \"\" << /, " << ", code);
+        print code;
+    }
+}
+
+/\*\// { inline_asm = 0; }
+
+/enum Operator {/ {
+    parsing = 1;
+}
+
+END {
+    if (token != "") print "            break;";
+    print "        default:"
+    print "            oss << \"@ couldn't generate code for this operation!\" << std::endl;"
+    print "            break;"
+    print "        };"
+    print "        return oss.str();"
+}
+

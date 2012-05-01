@@ -1,0 +1,59 @@
+#!/usr/bin/ruby
+
+# quadruple.hpp 파일에서 GuessType 함수의 몸체를 생성하는 스크립트
+
+old_left = ""
+tok_list = []
+parsing = false
+puts "        switch(opr) {"
+$stdin.each_line do |line|
+  parsing = false if line.chomp.squeeze.include?("};")
+  if parsing then
+    tok = line.chomp.delete(" ")
+    tok = tok[0...tok.index(",")] if tok.include?(",")
+    tok = tok[0...tok.index("//")] if tok.include?("//")
+    if tok.include?("_") and tok.include?("OP") then
+      tok_list.push(tok)
+      sep = tok.split("_")
+      cond = "1"
+      for i in 1...sep.length
+        is_const = false
+        sep[i] = "INT_ARRAY" if sep[i] == "IARR"
+        sep[i] = "DOUBLE_ARRAY" if sep[i] == "DARR"
+        sep[i] = "STR_ARRAY" if sep[i] == "SARR"
+        if sep[i] == "CINT" then
+          sep[i] = "INT"
+          is_const = true
+        end
+        if sep[i] == "CSTR" then
+          sep[i] = "STR"
+          is_const = true
+        end
+        cond = cond + " && (operands[#{i % 3}]->getValueType() == Token::T_#{sep[i]})" unless sep[i] == "ANY"
+        cond = cond + " && !(operands[#{i % 3}]->isVar())" if is_const and sep[i] != "ANY"
+        cond = cond + " && (operands[#{i % 3}]->isVar())" if not is_const and sep[i] != "ANY"
+      end
+      
+      if sep[0] != old_left then
+        puts "            break;" if old_left != ""
+        puts "        case " + sep[0] +":"
+        puts "            if (#{cond})"
+        puts "                opr = #{tok};"
+      else
+        puts "            else if (#{cond})"
+        puts "                opr = #{tok};"
+      end
+      old_left = sep[0]
+    end
+  else
+    parsing = true if line.chomp.squeeze.include?("enum Operator {")
+  end
+end
+puts "            break;"
+for defaults in tok_list
+  puts "        case #{defaults}:"
+end
+puts "            break;"
+puts "            // for eliminating warnings. keep these."
+puts "            // if you see warnings, please add guessed type of it."
+puts "        }"

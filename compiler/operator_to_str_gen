@@ -1,0 +1,29 @@
+#!/usr/bin/ruby
+
+# quadruple.hpp 파일에서 InferenceType 함수의 몸체를 생성하는 스크립트
+
+old_left = ""
+parsing = false
+comment = false
+puts "        switch(opr) {"
+$stdin.each_line do |line|
+  parsing = false if line.chomp.squeeze.include?("};")
+  if parsing then
+    tok = line.chomp.delete(" ")
+    tok = tok[0...tok.index(",")] if tok.include?(",")
+    tok = tok[0...tok.index("//")] if tok.include?("//")
+    tok = tok.strip
+    comment = true if tok.include? "/*";
+    if tok != "" and not comment then
+      puts "        case " + tok + ":"
+      puts "            return \"#{tok}\";"
+    end
+    comment = false if tok.include? "*/";
+  else
+    parsing = true if line.chomp.squeeze.include?("enum Operator {")
+  end
+end
+puts "        default:"
+puts "            return \"???\";"
+puts "            // for eliminating warnings"
+puts "        }"

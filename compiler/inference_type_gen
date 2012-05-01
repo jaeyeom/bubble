@@ -1,0 +1,37 @@
+#!/usr/bin/ruby
+
+# quadruple.hpp 파일에서 InferenceType 함수의 몸체를 생성하는 스크립트
+
+old_left = ""
+parsing = false
+puts "        switch(opr) {"
+$stdin.each_line do |line|
+  parsing = false if line.chomp.squeeze.include?("};")
+  if parsing then
+    tok = line.chomp.delete(" ")
+    tok = tok[0...tok.index(",")] if tok.include?(",")
+    tok = tok[0...tok.index("//")] if tok.include?("//")
+    tok = tok.strip
+    if tok != "" and not tok.include?("_") and line.include?("//") then
+      code = line.chomp
+      code = code[code.index("//")+2...code.length].strip
+      code = "            #{code}"
+      code.gsub!(/([abc])[ ]*=[ ]*([^;]*)/, '\1->setValueType(\2)')
+      code.gsub!(/([^A-Za-z])a([^A-Za-z])/, '\1operands[0]\2')
+      code.gsub!(/([^A-Za-z])b([^A-Za-z])/, '\1operands[1]\2')
+      code.gsub!(/([^A-Za-z])c([^A-Za-z])/, '\1operands[2]\2')
+      code.gsub!(/(->setValueType\(.*)operands\[0\](.*\))/, '\1operands[0]->getValueType()\2')
+      code.gsub!(/(->setValueType\(.*)operands\[1\](.*\))/, '\1operands[1]->getValueType()\2')
+      code.gsub!(/(->setValueType\(.*)operands\[2\](.*\))/, '\1operands[2]->getValueType()\2')
+      puts "        case " + tok + ":"
+      puts code
+      puts "            break;"
+    end
+  else
+    parsing = true if line.chomp.squeeze.include?("enum Operator {")
+  end
+end
+puts "        default:"
+puts "            break;"
+puts "            // for eliminating warnings"
+puts "        }"
