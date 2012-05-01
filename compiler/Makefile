@@ -22,7 +22,7 @@ test: all
 	$(BPLC) quicksort-str.src > quicksort-str.s
 
 clean:
-	rm -rf bubbleParser.hpp bubbleParser.cpp bubbleLexer.cpp bubble bubble.r15 bubble.r19 position.hh stack.hh location.hh lex.yy.cc *.o to_c_code.inc guess_type.inc # bubble.y
+	rm -rf bubbleParser.hpp bubbleParser.cpp bubbleLexer.cpp bubble bubble.r15 bubble.r19 position.hh stack.hh location.hh lex.yy.cc *.o guess_type.inc to_c_code.inc to_asm_code.inc inference_type.inc operator_to_str.inc # bubble.y
 
 rebuild: clean all
 
